@@ -1,0 +1,211 @@
+#!/usr/bin/python
+
+import sys
+import os
+
+import taglib
+
+DONTCAP = ("a", "an", "the",
+           "and", "but", "or", "nor", "for", "yet", "so",
+           "ov",
+           "as", "at", "by", "for", "in", "of", "on", "to", "from",
+           "v", "vs", "versus", "etc")
+
+def pretty_word(s):
+    if s.lower() in DONTCAP:
+        return s.lower()
+    if s[-1] in ".!?;:)]":
+        return pretty_word(s[:-1]) + s[-1]
+    if s[0] in "([":
+        return s[0] + pretty_word(s[1:])
+    if s.startswith("..."):
+        return "..." + s[3:].capitalize()
+
+    # Don't touch abbreviatures and roman numbers
+    if (s.isupper() and (s.strip("().-IVXLCDM") == "")) or (s.count(".") > 0):
+        return s
+
+    # Capitalize every part of words with '-' or '/'
+    for symbol in "-/":
+        if symbol in s:
+            return symbol.join(map(lambda x: x.capitalize(), s.split(symbol)))
+
+    return s.capitalize()
+
+def pretty_string(s):
+    newwords = []
+    newsent = True
+    for w in s.split():
+        word = pretty_word(w)
+        if newsent and word[0].islower():
+            word = word[0].upper() + word[1:]
+        if (word[-1] in ".!?;") or (word == "-"):
+            newsent = True
+        else:
+            newsent = False
+        newwords.append(word)
+
+    # also capitalize the very last word
+    if (newwords[-1][0] not in ".([!\"'") and newwords[-1][0].islower():
+            newwords[-1] = newwords[-1][0].upper() + newwords[-1][1:]
+
+    if newwords[-1] == "Cover)":
+        newwords[-1] = "cover)"
+    return " ".join(newwords)
+
+def process_dir(srcdir):
+    mus = []
+    nomus = []
+    mf = []
+    for dirpath, dirs, files in os.walk(srcdir, topdown=False):
+        for name in files:
+            f = os.path.join(os.path.abspath(dirpath), name)
+            try:
+                ff = taglib.File(f)
+            except:
+                nomus.append(f)
+            else:
+                mus.append(f)
+                mf.append(ff)
+    process_mfs(mf)
+
+
+def process_mfs(files):
+    issplit = False
+    isva = False
+    artists = []
+    albums = []
+    dates = []
+    genres = []
+    albumartist = ""
+    for f in files:
+        if "ARTIST" in f.tags:
+            f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
+            if f.tags["ARTIST"][0] not in artists:
+                artists.append(f.tags["ARTIST"][0])
+        if "ALBUM" in f.tags:
+            f.tags["ALBUM"] = [pretty_string(f.tags["ALBUM"][0])]
+            if f.tags["ALBUM"][0] not in albums:
+                albums.append(f.tags["ALBUM"][0])
+        if "DATE" in f.tags:
+            if f.tags["DATE"][0] not in dates:
+                dates.append(f.tags["DATE"][0])
+        if "GENRE" in f.tags:
+            if f.tags["GENRE"][0] not in genres:
+                genres.append(f.tags["GENRE"][0])
+    if not artists:
+        print("WARNING! No Artist")
+        artists = [input("Enter Artist: ")]
+    if not albums:
+        print("WARNING! No Album")
+        albums = [input("Enter Album: ")]
+    if not dates:
+        print("WARNING! No date")
+        dates = [input("Enter date: ")]
+    if not genres:
+        print("WARNING! No genre")
+        genres = [input("Enter genre: ")]
+    if len(artists) > 1:
+        print("More then one artist found")
+        if len(artists) < 5:
+            ans = input("Is it Split [y/N]")
+            if ans and (ans in "yY"):
+                issplit = True
+                albumartist = " & ".join(artists)
+        else:
+            ans = input("Is it VA [y/N]")
+            if ans and (ans in "yY"):
+                isva = True
+                albumartist = "VA"
+        if not albumartist:
+            print("\nArtists are: \n    " + "\n    ".join(artists))
+            artists = [input("Enter Artist: ")]
+    if len(albums) > 1:
+        print("More then one album found: \n    " + "\n    ".join(albums))
+        albums = [input("Enter Album: ")]
+    if len(dates) > 1:
+        print("More then one date found: \n    " + "\n    ".join(dates))
+        dates = [input("Enter date: ")]
+    if len(dates[0]) != 4:
+        print("Date doesn't look like a year number: " + dates[0])
+        newdate = input("Enter date or press enter to use {0}:".format(dates[0]))
+        if newdate:
+            dates = [newdate]
+    newfiles = []
+
+    print("Setting tags...")
+    if albumartist:
+        print("ALBUMARTIST will be set to: " + albumartist)
+    else:
+        print("ARTIST will be set to: " + artists[0])
+    print("ALBUM will be set to: " + albums[0])
+    print("DATE will be set to: " + dates[0])
+    print("GENRE will be set to: " + genres[0])
+
+    for f in files:
+        f.tags["ALBUM"] = albums
+        f.tags["DATE"] = dates
+
+        if albumartist:
+            print("albumartist will be set to: " + albumartist)
+            f.tags["ALBUMARTIST"] = albumartist
+            f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
+        else:
+            if "ALBUMARTIST" in f.tags:
+                del f.tags["ALBUMARTIST"]
+            f.tags["ARTIST"] = artists
+
+        if "TITLE" in f.tags:
+            f.tags["TITLE"] = [pretty_string(f.tags["TITLE"][0])]
+        else:
+            f.tags["TITLE"] = ["[untitled]"]
+
+        if "GENRE" in f.tags:
+            f.tags["GENRE"] = [pretty_string(f.tags["GENRE"][0])]
+        else:
+            f.tags["GENRE"] = [genres[0]]
+        
+        # Make track number 2 digits
+        if len(f.tags['TRACKNUMBER'][0]) == 1:
+            f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
+
+        # Strip leading tracknumber from track name
+        if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
+            if f.tags["TITLE"][0][2:4] in (". ", " -", "- "):
+                f.tags["TITLE"][0] = f.tags["TITLE"][0][4:].lstrip()
+
+        if f.path.lower().endswith('mp3') and ('/' not in f.tags['TRACKNUMBER'][0]):
+            f.tags['TRACKNUMBER'][0] = f.tags['TRACKNUMBER'][0] + "/{0:02d}".format(len(files))
+        else:
+            f.tags["TOTALTRACKS"] = ["{0:02d}".format(len(files))]
+            f.tags["TRACKTOTAL"] = ["{0:02d}".format(len(files))]
+
+        todel = ("BAND", "PERFORMER", "band", "performer",
+                 "ALBUM ARTIST", "album artist",
+                 "TRACKTOTAL", "tracktotal")
+        for prop in todel:
+            if prop in f.tags:
+                print("deleting " + prop)
+                del f.tags[prop]
+
+        newfiles.append(f)
+    
+    for f in newfiles:
+        f.save()
+    
+    # Print 'Artist - YYYY - Album'
+    if albumartist:
+        artist = albumartist
+    else:
+        artist = artists[0]
+    print("{0} - {1} - {2}".format(artist, dates[0], albums[0]))
+
+
+def main():
+    if len(sys.argv) != 2:
+        print("You should specify an album directory")
+        return
+    process_dir(sys.argv[1])
+
+if  __name__ ==  "__main__":
+    main()
