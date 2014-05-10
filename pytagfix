@@ -141,13 +141,14 @@ def process_mfs(files):
     print("ALBUM will be set to: " + albums[0])
     print("DATE will be set to: " + dates[0])
     print("GENRE will be set to: " + genres[0])
+    if albumartist:
+        print("albumartist will be set to: " + albumartist)
 
     for f in files:
         f.tags["ALBUM"] = albums
         f.tags["DATE"] = dates
 
         if albumartist:
-            print("albumartist will be set to: " + albumartist)
             f.tags["ALBUMARTIST"] = albumartist
             f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
         else:
@@ -166,8 +167,11 @@ def process_mfs(files):
             f.tags["GENRE"] = [genres[0]]
         
         # Make track number 2 digits
-        if len(f.tags['TRACKNUMBER'][0]) == 1:
-            f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
+        if 'TRACKNUMBER' in f.tags:
+            if len(f.tags['TRACKNUMBER'][0]) == 1:
+                f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
+        else:
+            f.tags['TRACKNUMBER'] = [input("Enter TRACKNUMBER for '{0}': ".format(f.path.split("/")[-1]))]
 
         # Strip leading tracknumber from track name
         if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
@@ -202,10 +206,13 @@ def process_mfs(files):
 
 
 def main():
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print("You should specify an album directory")
         return
-    process_dir(sys.argv[1])
+
+    for d in sys.argv[1:]:
+        print("\nProcessing '{0}'".format(d))
+        process_dir(d)
 
 if  __name__ ==  "__main__":
     main()
