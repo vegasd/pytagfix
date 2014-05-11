@@ -33,7 +33,7 @@ def pretty_word(s, newsent=False):
     # Capitalize every part of words with '-' or '/'
     for symbol in "-/":
         if symbol in s:
-            return symbol.join(x.capitalize() for x in s.split(symbol))
+            return symbol.join(pretty_word(x, True) for x in s.split(symbol))
 
     return s.capitalize()
 
