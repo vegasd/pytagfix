@@ -12,6 +12,8 @@ DONTCAP = ("a", "an", "the",
            "ov", "ye")
 
 def pretty_word(s, newsent=False):
+    if not s:
+        return ""
     if not newsent and (s.lower() in DONTCAP):
         return s.lower()
     if s[-1] in ".!?;:)]":
