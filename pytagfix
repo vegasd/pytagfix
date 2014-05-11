@@ -44,7 +44,7 @@ def pretty_string(s):
     newsent = True
     for w in s.split():
         word = pretty_word(w, newsent)
-        if (word[-1] in ".!?;:") or (word == "-"):
+        if (word[-1] in ".!?;:") or (word in ("-", "/")):
             newsent = True
         else:
             newsent = False
