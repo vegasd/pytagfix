@@ -131,13 +131,14 @@ def process_mfs(files):
     newfiles = []
 
     print("Setting tags...")
+    pairs = [("ARTIST", artists[0]),
+             ("ALBUM", albums[0]),
+             ("DATE", dates[0]),
+             ("GENRE", genres[0])]
     if albumartist:
-        print("ALBUMARTIST will be set to: " + albumartist)
-    else:
-        print("ARTIST will be set to: " + artists[0])
-    print("ALBUM will be set to: " + albums[0])
-    print("DATE will be set to: " + dates[0])
-    print("GENRE will be set to: " + genres[0])
+        pairs[0] = ("ALBUMARTIST", albumartist)
+    for p in pairs:
+        print("{0[0]:>12}: {0[1]}".format(p))
 
     for f in files:
         f.tags["ALBUM"] = albums
