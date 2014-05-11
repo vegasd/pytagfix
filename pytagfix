@@ -7,9 +7,9 @@ import taglib
 
 DONTCAP = ("a", "an", "the",
            "and", "but", "or", "nor", "for", "yet", "so",
-           "ov",
            "as", "at", "by", "for", "in", "of", "on", "to", "from",
-           "v", "vs", "versus", "etc")
+           "v", "vs", "versus", "etc",
+           "ov", "ye")
 
 def pretty_word(s):
     if s.lower() in DONTCAP:
@@ -179,14 +179,13 @@ def process_mfs(files):
             f.tags['TRACKNUMBER'][0] = f.tags['TRACKNUMBER'][0] + "/{0:02d}".format(len(files))
         else:
             f.tags["TOTALTRACKS"] = ["{0:02d}".format(len(files))]
-            f.tags["TRACKTOTAL"] = ["{0:02d}".format(len(files))]
 
         todel = ("BAND", "PERFORMER", "band", "performer",
                  "ALBUM ARTIST", "album artist",
                  "TRACKTOTAL", "tracktotal")
         for prop in todel:
             if prop in f.tags:
-                print("deleting " + prop)
+                print("deleting '{0}' from '{1}'".format(prop, os.path.basename(f.path)))
                 del f.tags[prop]
 
         newfiles.append(f)
