@@ -44,7 +44,7 @@ def pretty_string(s):
         word = pretty_word(w)
         if newsent and word[0].islower():
             word = word[0].upper() + word[1:]
-        if (word[-1] in ".!?;") or (word == "-"):
+        if (word[-1] in ".!?;:") or (word == "-"):
             newsent = True
         else:
             newsent = False
