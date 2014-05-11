@@ -138,8 +138,6 @@ def process_mfs(files):
     print("ALBUM will be set to: " + albums[0])
     print("DATE will be set to: " + dates[0])
     print("GENRE will be set to: " + genres[0])
-    if albumartist:
-        print("albumartist will be set to: " + albumartist)
 
     for f in files:
         f.tags["ALBUM"] = albums
