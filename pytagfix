@@ -11,15 +11,15 @@ DONTCAP = ("a", "an", "the",
            "v", "vs", "versus", "etc",
            "ov", "ye")
 
-def pretty_word(s):
-    if s.lower() in DONTCAP:
+def pretty_word(s, newsent=False):
+    if not newsent and (s.lower() in DONTCAP):
         return s.lower()
     if s[-1] in ".!?;:)]":
-        return pretty_word(s[:-1]) + s[-1]
+        return pretty_word(s[:-1], newsent) + s[-1]
     if s[0] in "(['\"":
-        return s[0] + pretty_word(s[1:])
+        return s[0] + pretty_word(s[1:], True)
     if s.startswith("..."):
-        return "..." + s[3:].capitalize()
+        return "..." + pretty_word(s[3:], True)
 
     # Don't touch abbreviatures and roman numbers
     if (s.isupper() and (s.strip("().-IVXLCDM") == "")) or (s.count(".") > 0):
@@ -41,9 +41,7 @@ def pretty_string(s):
     newwords = []
     newsent = True
     for w in s.split():
-        word = pretty_word(w)
-        if newsent and word[0].islower():
-            word = word[0].upper() + word[1:]
+        word = pretty_word(w, newsent)
         if (word[-1] in ".!?;:") or (word == "-"):
             newsent = True
         else:
@@ -51,8 +49,7 @@ def pretty_string(s):
         newwords.append(word)
 
     # also capitalize the very last word
-    if (newwords[-1][0] not in ".([!\"'") and newwords[-1][0].islower():
-            newwords[-1] = newwords[-1][0].upper() + newwords[-1][1:]
+    newwords[-1] = pretty_word(newwords[-1], True)
 
     if newwords[-1] == "Cover)":
         newwords[-1] = "cover)"
