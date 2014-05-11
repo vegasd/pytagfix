@@ -61,7 +61,7 @@ def process_dir(srcdir):
             try:
                 ff = taglib.File(os.path.join(os.path.abspath(dirpath), name))
             except:
-                print("NOTE: {0} is not music file and will be skipped".format(name))
+                print("SKIPPING not music file: {0}".format(name))
             else:
                 mf.append(ff)
     process_mfs(mf)
@@ -129,16 +129,16 @@ def process_mfs(files):
         if newdate:
             dates = [newdate]
     newfiles = []
-
-    print("Setting tags...")
+    
+    # Print info about tags for ALL tracks of an album
     pairs = [("ARTIST", artists[0]),
              ("ALBUM", albums[0]),
              ("DATE", dates[0]),
              ("GENRE", genres[0])]
     if albumartist:
         pairs[0] = ("ALBUMARTIST", albumartist)
-    for p in pairs:
-        print("{0[0]:>12}: {0[1]}".format(p))
+    print("For ALL songs tags will be set to:\n",
+          "\n".join("{0[0]:>12}: {0[1]}".format(x) for x in pairs))
 
     for f in files:
         f.tags["ALBUM"] = albums
