@@ -66,91 +66,63 @@ def process_dir(srcdir):
                 mf.append(ff)
     process_mfs(mf)
 
-
-def process_mfs(files):
-    issplit = False
-    isva = False
-    artists = []
-    albums = []
-    dates = []
-    genres = []
-    albumartist = ""
+def get_common_data(files):
+    newdata = {"ARTIST": [], "ALBUM": [], "DATE": [], "GENRE": []}
     for f in files:
-        if "ARTIST" in f.tags:
-            f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
-            if f.tags["ARTIST"][0] not in artists:
-                artists.append(f.tags["ARTIST"][0])
-        if "ALBUM" in f.tags:
-            f.tags["ALBUM"] = [pretty_string(f.tags["ALBUM"][0])]
-            if f.tags["ALBUM"][0] not in albums:
-                albums.append(f.tags["ALBUM"][0])
-        if "DATE" in f.tags:
-            if f.tags["DATE"][0] not in dates:
-                dates.append(f.tags["DATE"][0])
-        if "GENRE" in f.tags:
-            if f.tags["GENRE"][0] not in genres:
-                genres.append(f.tags["GENRE"][0])
-    if not artists:
-        print("WARNING! No Artist")
-        artists = [input("Enter Artist: ")]
-    if not albums:
-        print("WARNING! No Album")
-        albums = [input("Enter Album: ")]
-    if not dates:
-        print("WARNING! No date")
-        dates = [input("Enter date: ")]
-    if not genres:
-        print("WARNING! No genre")
-        genres = [input("Enter genre: ")]
-    if len(artists) > 1:
+        for tagname in newdata.keys():
+            d = ""
+            if tagname in f.tags:
+                d = pretty_string(f.tags[tagname][0])
+                if d not in newdata[tagname]:
+                    newdata[tagname].append(d)
+    for tagname in newdata.keys():
+        if not newdata[tagname]:
+            print("WARNING! No " + tagname)
+            newdata[tagname] = [input("Enter {0}: ".format(tagname))]
+    if len(newdata["ARTIST"]) > 1:
         print("More then one artist found")
-        if len(artists) < 5:
+        if len(newdata["ARTIST"]) < 5:
             ans = input("Is it Split [y/N]")
             if ans and (ans in "yY"):
-                issplit = True
-                albumartist = " & ".join(artists)
+                newdata["ALBUMARTIST"] = [" & ".join(newdata["ARTIST"])]
         else:
             ans = input("Is it VA [y/N]")
             if ans and (ans in "yY"):
-                isva = True
-                albumartist = "VA"
-        if not albumartist:
-            print("\nArtists are: \n    " + "\n    ".join(artists))
-            artists = [input("Enter Artist: ")]
-    if len(albums) > 1:
-        print("More then one album found: \n    " + "\n    ".join(albums))
-        albums = [input("Enter Album: ")]
-    if len(dates) > 1:
-        print("More then one date found: \n    " + "\n    ".join(dates))
-        dates = [input("Enter date: ")]
-    if len(dates[0]) != 4:
-        print("Date doesn't look like a year number: " + dates[0])
-        newdate = input("Enter date or press enter to use {0}:".format(dates[0]))
+                newdata["ALBUMARTIST"] = ["VA"]
+        if "ALBUMARTIST" not in newdata:
+            print("\nArtists are: \n    " + "\n    ".join(newdata["ARTIST"]))
+            newdata["ARTIST"] = [input("Enter Artist: ")]
+    for tagname in ("ALBUM", "DATE"):
+        if len(newdata[tagname]) > 1:
+            print("More then one {0} found:".format(tagname))
+            print("    " + "\n    ".join(newdata[tagname]))
+            newdata[tagname] = [input("Enter {0}: ".format(tagname))]
+    if len(newdata["DATE"][0]) != 4:
+        print("Date doesn't look like a year number: " + newdata["DATE"][0])
+        newdate = input("Enter date or press enter to use {0}:".format(newdata["DATE"][0]))
         if newdate:
-            dates = [newdate]
-    newfiles = []
+            newdata["DATE"] = [newdate]
+    return newdata
+
+def process_mfs(files):
+    newdata = get_common_data(files)
+    print("For ALL songs tags will be set to:")
+    for k in sorted(newdata):
+        if len(newdata[k]) == 1:
+            print("{0:>12}: {1}".format(k, newdata[k][0]))
     
-    # Print info about tags for ALL tracks of an album
-    pairs = [("ARTIST", artists[0]),
-             ("ALBUM", albums[0]),
-             ("DATE", dates[0]),
-             ("GENRE", genres[0])]
-    if albumartist:
-        pairs[0] = ("ALBUMARTIST", albumartist)
-    print("For ALL songs tags will be set to:\n",
-          "\n".join("{0[0]:>12}: {0[1]}".format(x) for x in pairs))
-
+    newfiles = []
     for f in files:
-        f.tags["ALBUM"] = albums
-        f.tags["DATE"] = dates
+        f.tags["ALBUM"] = newdata["ALBUM"]
+        f.tags["DATE"] = newdata["DATE"]
 
-        if albumartist:
-            f.tags["ALBUMARTIST"] = albumartist
+        if "ALBUMARTIST" in newdata:
+            f.tags["ALBUMARTIST"] = newdata["ALBUMARTIST"]
             f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
         else:
             if "ALBUMARTIST" in f.tags:
                 del f.tags["ALBUMARTIST"]
-            f.tags["ARTIST"] = artists
+            f.tags["ARTIST"] = newdata["ARTIST"]
 
         if "TITLE" in f.tags:
             f.tags["TITLE"] = [pretty_string(f.tags["TITLE"][0])]
@@ -160,7 +132,7 @@ def process_mfs(files):
         if "GENRE" in f.tags:
             f.tags["GENRE"] = [pretty_string(f.tags["GENRE"][0])]
         else:
-            f.tags["GENRE"] = [genres[0]]
+            f.tags["GENRE"] = newdata["GENRE"]
         
         # Make track number 2 digits
         if 'TRACKNUMBER' in f.tags:
@@ -184,7 +156,8 @@ def process_mfs(files):
                  "TRACKTOTAL", "tracktotal")
         for prop in todel:
             if prop in f.tags:
-                print("deleting '{0}' from '{1}'".format(prop, os.path.basename(f.path)))
+                print("deleting '{0}' from '{1}'".format(
+                                            prop, os.path.basename(f.path)))
                 del f.tags[prop]
 
         newfiles.append(f)
@@ -193,11 +166,11 @@ def process_mfs(files):
         f.save()
     
     # Print 'Artist - YYYY - Album'
-    if albumartist:
-        artist = albumartist
+    if "ALBUMARTIST" in newdata:
+        artist = newdata["ALBUMARTIST"][0]
     else:
-        artist = artists[0]
-    print("{0} - {1} - {2}".format(artist, dates[0], albums[0]))
+        artist = newdata["ARTIST"][0]
+    print("{0} - {1} - {2}".format(artist, newdata["DATE"][0], newdata["ALBUM"][0]))
 
 
 def main():
