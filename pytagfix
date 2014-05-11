@@ -54,18 +54,15 @@ def pretty_string(s):
     return " ".join(newwords)
 
 def process_dir(srcdir):
-    mus = []
-    nomus = []
     mf = []
     for dirpath, dirs, files in os.walk(srcdir, topdown=False):
         for name in files:
             f = os.path.join(os.path.abspath(dirpath), name)
             try:
-                ff = taglib.File(f)
+                ff = taglib.File(os.path.join(os.path.abspath(dirpath), name))
             except:
-                nomus.append(f)
+                print("NOTE: {0} is not music file and will be skipped".format(name))
             else:
-                mus.append(f)
                 mf.append(ff)
     process_mfs(mf)
 
@@ -171,7 +168,7 @@ def process_mfs(files):
             if len(f.tags['TRACKNUMBER'][0]) == 1:
                 f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
         else:
-            f.tags['TRACKNUMBER'] = [input("Enter TRACKNUMBER for '{0}': ".format(f.path.split("/")[-1]))]
+            f.tags['TRACKNUMBER'] = [input("Enter TRACKNUMBER for '{0}': ".format(os.path.basename(f.path)))]
 
         # Strip leading tracknumber from track name
         if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
