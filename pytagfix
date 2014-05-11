@@ -16,7 +16,7 @@ def pretty_word(s):
         return s.lower()
     if s[-1] in ".!?;:)]":
         return pretty_word(s[:-1]) + s[-1]
-    if s[0] in "([":
+    if s[0] in "(['\"":
         return s[0] + pretty_word(s[1:])
     if s.startswith("..."):
         return "..." + s[3:].capitalize()
