@@ -25,6 +25,11 @@ def pretty_word(s):
     if (s.isupper() and (s.strip("().-IVXLCDM") == "")) or (s.count(".") > 0):
         return s
 
+    # Don't touch words with only consonant letters,
+    # it's most likely not a regular word.
+    if (len(s) > 1) and (s.lower().srtrip("BCDFGHJKLMNPQRSTVWXZ") == ""):
+        return s
+
     # Capitalize every part of words with '-' or '/'
     for symbol in "-/":
         if symbol in s:
@@ -146,8 +151,11 @@ def process_mfs(files):
             if f.tags["TITLE"][0][2:4] in (". ", " -", "- "):
                 f.tags["TITLE"][0] = f.tags["TITLE"][0][4:].lstrip()
 
-        if f.path.lower().endswith('mp3') and ('/' not in f.tags['TRACKNUMBER'][0]):
-            f.tags['TRACKNUMBER'][0] = f.tags['TRACKNUMBER'][0] + "/{0:02d}".format(len(files))
+        if f.path.lower().endswith('mp3'):
+            if "TOTALTRACKS" in f.tags:
+                del f.tags["TOTALTRACKS"]
+            if '/' not in f.tags['TRACKNUMBER'][0]:
+                f.tags['TRACKNUMBER'][0] = f.tags['TRACKNUMBER'][0] + "/{0:02d}".format(len(files))
         else:
             f.tags["TOTALTRACKS"] = ["{0:02d}".format(len(files))]
 
