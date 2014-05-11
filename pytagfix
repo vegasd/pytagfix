@@ -27,7 +27,7 @@ def pretty_word(s):
 
     # Don't touch words with only consonant letters,
     # it's most likely not a regular word.
-    if (len(s) > 1) and (s.lower().srtrip("BCDFGHJKLMNPQRSTVWXZ") == ""):
+    if (len(s) > 1) and (s.lower().strip("BCDFGHJKLMNPQRSTVWXZ") == ""):
         return s
 
     # Capitalize every part of words with '-' or '/'
