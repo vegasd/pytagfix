@@ -145,6 +145,11 @@ def process_mfs(files):
         else:
             f.tags['TRACKNUMBER'] = [input("Enter TRACKNUMBER for '{0}': ".format(os.path.basename(f.path)))]
 
+        if 'COMMENT' in f.tags and f.tags["COMMENT"][0].lower().startswith("track"):
+            c = f.tags["COMMENT"][0].split()
+            if (len(c) == 2) and (c[1].isalnum()):
+                del f.tags["COMMENT"]
+
         # Strip leading tracknumber from track name
         if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
             if f.tags["TITLE"][0][2:4] in (". ", " -", "- "):
