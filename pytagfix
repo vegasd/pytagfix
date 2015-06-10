@@ -5,11 +5,26 @@ import os
 
 import taglib
 
-DONTCAP = ("a", "an", "the",
-           "and", "but", "or", "nor", "for", "yet", "so",
-           "as", "at", "by", "for", "in", "of", "on", "to", "from",
-           "vs", "versus", "etc",
-           "ov", "ye")
+
+
+DONTCAP = (
+    # Don't capitalize articles (a, an, the), unless the article is part of an artist's name. 
+    "a", "an", "the",
+    # Don't capitalize coordinating conjunctions: and, but, or, nor, for, yet and so. 
+    "and", "but", "or", "nor", "for", "yet", "so",
+    # Don't capitalize these prepositions: as, at, by, for, in, of, on, to 
+    "as", "at", "by", "for", "in", "of", "on", "to",
+    # The word versus (and its abbreviated form vs. or v.) is commonly left in lower case, despite its being a preposition of more than three characters. 
+    "vs", "versus",
+    # The word Et cetera (and its abbreviated form etc.) is also commonly left in lower case when used to represent the phrase and so on or and so forth. 
+    "etc",
+    # Capitalize contractions and slang consistent with the rules above to the extent that such clearly apply. For example, do not capitalize o' for of, or n' for and, etc.
+    "o'", "n'",
+    # Some additional words used as slang...
+    "ov", "ye"
+)
+
+# All prepositions with four or more letters such as into, from, with, upon, etc. should be capitalized. 
 
 def pretty_word(s, newsent=False):
     if not s:
@@ -17,7 +32,7 @@ def pretty_word(s, newsent=False):
     if not newsent and (s.lower() in DONTCAP):
         return s.lower()
     if s[-1] in ".!?;:)]":
-        return pretty_word(s[:-1], newsent) + s[-1]
+        return pretty_word(s[:-1], True) + s[-1]
     if s[0] in "(['\"":
         return s[0] + pretty_word(s[1:], True)
     if s.startswith("..."):
@@ -39,22 +54,47 @@ def pretty_word(s, newsent=False):
 
     return s.capitalize()
 
-def pretty_string(s):
+
+def pretty_rusword(w, newsent=True):
+    if newsent:
+        return w.capitalize()
+    if w.lower() in ("сатана", "сатаны", "сатане", "сатану", "сатаной",
+                     "христос", "христ", "христа", "христу", "христом", "христе",
+                     "иисус", "иисуса", "иисусу", "иисусом", "иисусе",
+                     "тьма", "тьмы", "тьме", "тьмой", "тьмою", "тьме",
+                     "хаос", "хаоса", "хаосе", "хаосом", "хаосу",
+                     "пустота", "пустоты", "пустотой", "пустоте"):
+        return w.capitalize()
+    return w.lower()
+    
+
+def pretty_string(s, lang="eng"):
     newwords = []
     newsent = True
+
+    RUSSIAN = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+    if any(x in s for x in RUSSIAN):
+        lang = "rus"
+
     for w in s.split():
-        word = pretty_word(w, newsent)
-        if (word[-1] in ".!?;:") or (word in ("-", "/")):
+        if lang == "eng":
+            word = pretty_word(w, newsent)
+        else:
+            word = pretty_rusword(w, newsent)
+        if (word[-1] in ".!?;:)]") or (word in ("-", "/", "—")):
             newsent = True
         else:
             newsent = False
         newwords.append(word)
 
-    # also capitalize the very last word
-    newwords[-1] = pretty_word(newwords[-1], True)
+    if lang == "eng":
+        # also capitalize the very last word
+        newwords[-1] = pretty_word(newwords[-1], True)
 
     if newwords[-1] == "Cover)":
         newwords[-1] = "cover)"
+    if newwords[-1] == "Cover]":
+        newwords[-1] = "cover]"
     return " ".join(newwords)
 
 def process_dir(srcdir):
@@ -72,17 +112,15 @@ def process_dir(srcdir):
 
 def get_common_data(files):
     newdata = {"ARTIST": [], "ALBUM": [], "DATE": [], "GENRE": []}
-    for f in files:
-        for tagname in newdata.keys():
-            d = ""
+    for tagname in sorted(newdata.keys()):
+        for f in files:
             if tagname in f.tags:
-                d = pretty_string(f.tags[tagname][0])
-                if d not in newdata[tagname]:
+                d = f.tags[tagname]
+                d = pretty_string(d[0])
+                if d and d not in newdata[tagname]:
                     newdata[tagname].append(d)
-    for tagname in newdata.keys():
         if not newdata[tagname]:
-            print("WARNING! No " + tagname)
-            newdata[tagname] = [input("Enter {0}: ".format(tagname))]
+            newdata[tagname] = [input("No {0} found. Enter {0}: ".format(tagname))]
     if len(newdata["ARTIST"]) > 1:
         print("More then one artist found")
         if len(newdata["ARTIST"]) < 5:
