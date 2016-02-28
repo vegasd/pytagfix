@@ -5,110 +5,39 @@ import os
 
 import taglib
 
+from prettytitle import pretty_string
 
-
-DONTCAP = (
-    # Don't capitalize articles (a, an, the), unless the article is part of an artist's name. 
-    "a", "an", "the",
-    # Don't capitalize coordinating conjunctions: and, but, or, nor, for, yet and so. 
-    "and", "but", "or", "nor", "for", "yet", "so",
-    # Don't capitalize these prepositions: as, at, by, for, in, of, on, to 
-    "as", "at", "by", "for", "in", "of", "on", "to",
-    # The word versus (and its abbreviated form vs. or v.) is commonly left in lower case, despite its being a preposition of more than three characters. 
-    "vs", "versus",
-    # The word Et cetera (and its abbreviated form etc.) is also commonly left in lower case when used to represent the phrase and so on or and so forth. 
-    "etc",
-    # Capitalize contractions and slang consistent with the rules above to the extent that such clearly apply. For example, do not capitalize o' for of, or n' for and, etc.
-    "o'", "n'",
-    # Some additional words used as slang...
-    "ov", "ye"
-)
-
-# All prepositions with four or more letters such as into, from, with, upon, etc. should be capitalized. 
-
-def pretty_word(s, newsent=False):
-    if not s:
-        return ""
-    if not newsent and (s.lower() in DONTCAP):
-        return s.lower()
-    if s[-1] in ".!?;:)]":
-        return pretty_word(s[:-1], True) + s[-1]
-    if s[0] in "(['\"":
-        return s[0] + pretty_word(s[1:], True)
-    if s.startswith("..."):
-        return "..." + pretty_word(s[3:], True)
-
-    # Don't touch abbreviatures and roman numbers
-    if (s.isupper() and (s.strip("().-IVXLCDM") == "")) or (s.count(".") > 0):
-        return s
-
-    # Don't touch words with only consonant letters,
-    # it's most likely not a regular word.
-    if (len(s) > 1) and (s.upper().strip("BCDFGHJKLMNPQRSTVWXZ") == ""):
-        return s
-
-    # Capitalize every part of words with '-' or '/'
-    for symbol in "-/":
-        if symbol in s:
-            return symbol.join(pretty_word(x, True) for x in s.split(symbol))
-
-    return s.capitalize()
-
-
-def pretty_rusword(w, newsent=True):
-    if newsent:
-        return w.capitalize()
-    if w.lower() in ("сатана", "сатаны", "сатане", "сатану", "сатаной",
-                     "христос", "христ", "христа", "христу", "христом", "христе",
-                     "иисус", "иисуса", "иисусу", "иисусом", "иисусе",
-                     "тьма", "тьмы", "тьме", "тьмой", "тьмою", "тьме",
-                     "хаос", "хаоса", "хаосе", "хаосом", "хаосу",
-                     "пустота", "пустоты", "пустотой", "пустоте"):
-        return w.capitalize()
-    return w.lower()
-    
-
-def pretty_string(s, lang="eng"):
-    newwords = []
-    newsent = True
-
-    RUSSIAN = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
-    if any(x in s for x in RUSSIAN):
-        lang = "rus"
-
-    for w in s.split():
-        if lang == "eng":
-            word = pretty_word(w, newsent)
-        else:
-            word = pretty_rusword(w, newsent)
-        if (word[-1] in ".!?;:)]") or (word in ("-", "/", "—")):
-            newsent = True
-        else:
-            newsent = False
-        newwords.append(word)
-
-    if lang == "eng":
-        # also capitalize the very last word
-        newwords[-1] = pretty_word(newwords[-1], True)
-
-    if newwords[-1] == "Cover)":
-        newwords[-1] = "cover)"
-    if newwords[-1] == "Cover]":
-        newwords[-1] = "cover]"
-    return " ".join(newwords)
 
 def process_dir(srcdir):
     mf = []
     for dirpath, dirs, files in os.walk(srcdir, topdown=False):
-        for name in files:
-            f = os.path.join(os.path.abspath(dirpath), name)
+        for name in sorted(files):
             try:
                 ff = taglib.File(os.path.join(os.path.abspath(dirpath), name))
             except:
                 print("SKIPPING not music file: {0}".format(name))
             else:
                 mf.append(ff)
-    process_mfs(mf)
+    process_music_files(mf)
+
+
+def input_yes(s):
+    ans = input("{} [y/N]".format(s))
+    if ans and (ans in "yY"):
+        return True
+    return False
+
+
+def get_album_artist(artist_list):
+    print("More then one artist found")
+    if len(artist_list) < 5:
+        if input_yes("Is it Split"):
+            return " & ".join(artist_list)
+    else:
+        if input_yes("Is it VA"):
+            return "VA"
+    return None
+
 
 def get_common_data(files):
     newdata = {"ARTIST": [], "ALBUM": [], "DATE": [], "GENRE": []}
@@ -120,20 +49,15 @@ def get_common_data(files):
                 if d and d not in newdata[tagname]:
                     newdata[tagname].append(d)
         if not newdata[tagname]:
-            newdata[tagname] = [input("No {0} found. Enter {0}: ".format(tagname))]
+            newdata[tagname] = [
+                input("No {0} found. Enter {0}: ".format(tagname))]
     if len(newdata["ARTIST"]) > 1:
-        print("More then one artist found")
-        if len(newdata["ARTIST"]) < 5:
-            ans = input("Is it Split [y/N]")
-            if ans and (ans in "yY"):
-                newdata["ALBUMARTIST"] = [" & ".join(newdata["ARTIST"])]
-        else:
-            ans = input("Is it VA [y/N]")
-            if ans and (ans in "yY"):
-                newdata["ALBUMARTIST"] = ["VA"]
-        if "ALBUMARTIST" not in newdata:
+        albumartist = get_album_artist(newdata["ARTIST"])
+        if albumartist is None:
             print("\nArtists are: \n    " + "\n    ".join(newdata["ARTIST"]))
             newdata["ARTIST"] = [input("Enter Artist: ")]
+        else:
+            newdata["ALBUMARTIST"] = [albumartist]
     for tagname in ("ALBUM", "DATE"):
         if len(newdata[tagname]) > 1:
             print("More then one {0} found:".format(tagname))
@@ -141,86 +65,98 @@ def get_common_data(files):
             newdata[tagname] = [input("Enter {0}: ".format(tagname))]
     if len(newdata["DATE"][0]) != 4:
         print("Date doesn't look like a year number: " + newdata["DATE"][0])
-        newdate = input("Enter date or press enter to use {0}:".format(newdata["DATE"][0]))
+        newdate = input(
+            "Enter date or press enter to use {0}:".format(newdata["DATE"][0]))
         if newdate:
             newdata["DATE"] = [newdate]
     return newdata
 
-def process_mfs(files):
+
+def process_music_files(files):
     newdata = get_common_data(files)
     print("For ALL songs tags will be set to:")
     for k in sorted(newdata):
         if len(newdata[k]) == 1:
             print("{0:>12}: {1}".format(k, newdata[k][0]))
-    
+
     newfiles = []
     for f in files:
-        f.tags["ALBUM"] = newdata["ALBUM"]
-        f.tags["DATE"] = newdata["DATE"]
-
-        if "ALBUMARTIST" in newdata:
-            f.tags["ALBUMARTIST"] = newdata["ALBUMARTIST"]
-            f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
-        else:
-            if "ALBUMARTIST" in f.tags:
-                del f.tags["ALBUMARTIST"]
-            f.tags["ARTIST"] = newdata["ARTIST"]
-
-        if "TITLE" in f.tags:
-            f.tags["TITLE"] = [pretty_string(f.tags["TITLE"][0])]
-        else:
-            f.tags["TITLE"] = ["[untitled]"]
-
-        if "GENRE" in f.tags:
-            f.tags["GENRE"] = [pretty_string(f.tags["GENRE"][0])]
-        else:
-            f.tags["GENRE"] = newdata["GENRE"]
-        
-        # Make track number 2 digits
-        if 'TRACKNUMBER' in f.tags:
-            if len(f.tags['TRACKNUMBER'][0]) == 1:
-                f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
-        else:
-            f.tags['TRACKNUMBER'] = [input("Enter TRACKNUMBER for '{0}': ".format(os.path.basename(f.path)))]
-
-        if 'COMMENT' in f.tags and f.tags["COMMENT"][0].lower().startswith("track"):
-            c = f.tags["COMMENT"][0].split()
-            if (len(c) == 2) and (c[1].isalnum()):
-                del f.tags["COMMENT"]
-
-        # Strip leading tracknumber from track name
-        if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
-            if f.tags["TITLE"][0][2:4] in (". ", " -", "- "):
-                f.tags["TITLE"][0] = f.tags["TITLE"][0][4:].lstrip()
-
+        f = edit_tags_common(f, newdata)
+        f = edit_tags1(f)
         if f.path.lower().endswith('mp3'):
             if "TOTALTRACKS" in f.tags:
                 del f.tags["TOTALTRACKS"]
             if '/' not in f.tags['TRACKNUMBER'][0]:
-                f.tags['TRACKNUMBER'][0] = f.tags['TRACKNUMBER'][0] + "/{0:02d}".format(len(files))
+                f.tags['TRACKNUMBER'][0] = "{0}/{1:02d}".format(
+                    f.tags['TRACKNUMBER'][0],
+                    len(files))
         else:
             f.tags["TOTALTRACKS"] = ["{0:02d}".format(len(files))]
 
-        todel = ("BAND", "PERFORMER", "band", "performer",
-                 "ALBUM ARTIST", "album artist",
-                 "TRACKTOTAL", "tracktotal")
-        for prop in todel:
-            if prop in f.tags:
-                print("deleting '{0}' from '{1}'".format(
-                                            prop, os.path.basename(f.path)))
-                del f.tags[prop]
-
         newfiles.append(f)
-    
+
     for f in newfiles:
         f.save()
-    
+
     # Print 'Artist - YYYY - Album'
-    if "ALBUMARTIST" in newdata:
-        artist = newdata["ALBUMARTIST"][0]
+    print(" - ".join((newdata.get("ALBUMARTIST", newdata["ARTIST"])[0],
+                      newdata["DATE"][0],
+                      newdata["ALBUM"][0])))
+
+
+def edit_tags_common(f, common):
+    f.tags["ALBUM"] = common["ALBUM"]
+    f.tags["DATE"] = common["DATE"]
+
+    if "ALBUMARTIST" in common:
+        f.tags["ALBUMARTIST"] = common["ALBUMARTIST"]
+        f.tags["ARTIST"] = [pretty_string(f.tags["ARTIST"][0])]
     else:
-        artist = newdata["ARTIST"][0]
-    print("{0} - {1} - {2}".format(artist, newdata["DATE"][0], newdata["ALBUM"][0]))
+        if "ALBUMARTIST" in f.tags:
+            del f.tags["ALBUMARTIST"]
+        f.tags["ARTIST"] = common["ARTIST"]
+
+    if "GENRE" in f.tags:
+        f.tags["GENRE"] = [pretty_string(f.tags["GENRE"][0])]
+    else:
+        f.tags["GENRE"] = common["GENRE"]
+    return f
+
+
+def edit_tags1(f):
+    # Make track number 2 digits
+    if 'TRACKNUMBER' in f.tags:
+        if len(f.tags['TRACKNUMBER'][0]) == 1:
+            f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
+    else:
+        f.tags['TRACKNUMBER'] = [
+            input("Enter TRACKNUMBER for '{0}': ".format(
+                os.path.basename(f.path)))
+        ]
+
+    if ('COMMENT' in f.tags and
+            f.tags["COMMENT"][0].lower().startswith("track")):
+        c = f.tags["COMMENT"][0].split()
+        if (len(c) == 2) and (c[1].isalnum()):
+            del f.tags["COMMENT"]
+
+    if "TITLE" in f.tags:
+        f.tags["TITLE"] = [pretty_string(f.tags["TITLE"][0])]
+    else:
+        f.tags["TITLE"] = ["[untitled]"]
+
+    # Strip leading tracknumber from track name
+    if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
+        if f.tags["TITLE"][0][2:4] in (". ", " -", "- "):
+            f.tags["TITLE"][0] = f.tags["TITLE"][0][4:].lstrip()
+
+    todel = ("band", "performer", "album artist", "tracktotal")
+    for prop in todel + tuple(x.upper for x in todel):
+        if prop in f.tags:
+            print("deleting '{0}' from '{1}'".format(prop,
+                                                     os.path.basename(f.path)))
+            del f.tags[prop]
+    return f
 
 
 def main():
@@ -232,5 +168,5 @@ def main():
         print("\nProcessing '{0}'".format(d))
         process_dir(d)
 
-if  __name__ ==  "__main__":
+if __name__ == "__main__":
     main()
