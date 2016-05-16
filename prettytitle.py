@@ -1,4 +1,6 @@
-DONTCAP = (
+import re
+
+ENG_DONT_CAP = (
     # Don't capitalize articles (a, an, the),
     # unless the article is part of an artist's name.
     "a", "an", "the",
@@ -22,40 +24,38 @@ DONTCAP = (
 # All prepositions with four or more letters
 # such as into, from, with, upon, etc. should be capitalized.
 
-RUSCAPITALIZE = ("сатана", "сатаны", "сатане", "сатану", "сатаной",
-                 "дьявол", "дьявола", "дьяволу", "дьяволом", "дьяволе",
-                 "христос", "христ", "христа", "христу", "христом", "христе",
-                 "иисус", "иисуса", "иисусу", "иисусом", "иисусе",
-                 "тьма", "тьмы", "тьме", "тьмой", "тьмою", "тьму",
-                 "хаос", "хаоса", "хаосе", "хаосом", "хаосу",
-                 "пустота", "пустоты", "пустотой", "пустоте")
+RUSCAP_RE = ("сатан([аыеу]|ой)?", "дьявол([ауе]|ом)?", "христ(ос)?([ауе]|ом)?",
+             "иисус([ауе]|ом)?", "тьм([аыеу]|ой|ою)", "хаос([аеу]|ом)?",
+             "пустот([аыу]|ой)")
 
-CYRILLIC = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
+CYRILLIC_LETTERS = "абвгдеёжзийклмнопрстуфхцчшщъыьэюя"
 CONSONANTS = "BCDFGHJKLMNPQRSTVWXZ" + "БВЖЗЙКЛМНПРСТФХЦЧШЩ"
 PLUSES = "ЪЬ-'`"
 
 
-def pw_eng(w, newsent=False):
+def pw_eng(w: str, newsent: bool = False) -> str:
     # Capitalize every part of words with '-' or '/'
     for symbol in "-/":
         if symbol in w:
             return symbol.join(pw_eng(x, newsent=True) for x in w.split(symbol))
+    if not newsent and (w.lower() in ENG_DONT_CAP):
+        return w.lower()
     return w.capitalize()
 
 
-def pw_rus(w, newsent=False):
+def pw_rus(w: str, newsent: bool = False) -> str:
     if newsent:
         return w.capitalize()
-    if w.lower() in RUSCAPITALIZE:
+    elif any(re.fullmatch(x, w.lower()) for x in RUSCAP_RE):
         return w.capitalize()
-    return w.lower()
+    else:
+        return w.lower()
 
 
-def pretty_word(s, newsent=False, lang="eng"):
+def pretty_word(s: str, newsent: bool = False, lang: str = "eng") -> str:
+    """Return right title-cased word based on lang rules"""
     if not s:
         return ""
-    if not newsent and (s.lower() in DONTCAP):
-        return s.lower()
     if s[-1] in ".!?;:)]…":
         return pretty_word(s[:-1], newsent=newsent, lang=lang) + s[-1]
     if s[0] in "(['\"…":
@@ -78,13 +78,14 @@ def pretty_word(s, newsent=False, lang="eng"):
         return pw_rus(s, newsent)
 
 
-def pretty_string(s, lang=None):
-    newwords = []
+def pretty_string(s: str, lang: str = None) -> str:
+    """Return correctly titled string"""
+    newwords = []  # type: List[str]
     newsent = True
 
     # Lang detect. FIXME: Primitive for now
-    if not lang:
-        if any(x in s for x in CYRILLIC):
+    if lang is None:
+        if any(x in s for x in CYRILLIC_LETTERS):
             lang = "rus"
         else:
             lang = "eng"

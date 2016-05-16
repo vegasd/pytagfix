@@ -123,21 +123,21 @@ def edit_tags_common(f, common):
     return f
 
 
-def edit_tags1(f):
-    # Make track number 2 digits
+def edit_tags1(f) -> None:
     if 'TRACKNUMBER' in f.tags:
-        if len(f.tags['TRACKNUMBER'][0]) == 1:
-            f.tags['TRACKNUMBER'] = ["0"+f.tags['TRACKNUMBER'][0]]
+        f.tags["TRACKNUMBER"] = [f.tags["TRACKNUMBER"][0].zfill(2)]
     else:
-        f.tags['TRACKNUMBER'] = [
-            input("Enter TRACKNUMBER for '{0}': ".format(
-                os.path.basename(f.path)))
-        ]
+        filename = os.path.basename(f.path)
+        if filename[:2].isdigit():
+            f.tags["TRACKNUMBER"] = [filename[:2]]
+        else:
+            f.tags['TRACKNUMBER'] = [input(
+                "Enter TRACKNUMBER for '{0}': ".format(filename)
+            )]
 
-    if ('COMMENT' in f.tags and
-            f.tags["COMMENT"][0].lower().startswith("track")):
-        c = f.tags["COMMENT"][0].split()
-        if (len(c) == 2) and (c[1].isalnum()):
+    # Delete dummy comments
+    if "COMMENT" in f.tags and f.tags["COMMENT"][0].lower().startswith("track"):
+        if f.tags["COMMENT"][0].split(num=1)[1].isalnum():
             del f.tags["COMMENT"]
 
     if "TITLE" in f.tags:
@@ -145,7 +145,7 @@ def edit_tags1(f):
     else:
         f.tags["TITLE"] = ["[untitled]"]
 
-    # Strip leading tracknumber from track name
+    # Strip leading tracknumber from track title
     if f.tags["TITLE"][0].startswith(f.tags['TRACKNUMBER'][0]):
         if f.tags["TITLE"][0][2:4] in (". ", " -", "- "):
             f.tags["TITLE"][0] = f.tags["TITLE"][0][4:].lstrip()
@@ -162,7 +162,7 @@ def edit_tags1(f):
 def main():
     if len(sys.argv) < 2:
         print("You should specify an album directory")
-        return
+        return 1
 
     for d in sys.argv[1:]:
         print("\nProcessing '{0}'".format(d))
