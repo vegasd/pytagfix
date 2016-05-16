@@ -123,7 +123,7 @@ def edit_tags_common(f, common):
     return f
 
 
-def edit_tags1(f) -> None:
+def edit_tags1(f):
     if 'TRACKNUMBER' in f.tags:
         f.tags["TRACKNUMBER"] = [f.tags["TRACKNUMBER"][0].zfill(2)]
     else:
